@@ -13,6 +13,7 @@
 | 7. Обработка банковского webhook | ACCEPTED |
 | 8. Контейнерный запуск приложения и PostgreSQL | REVIEW_REQUIRED |
 | 9. Список платежей с фильтрами | REVIEW_REQUIRED |
+| Отдельная задача: CI и Ruff | REVIEW_REQUIRED |
 
 ## Слайс 1
 
@@ -454,3 +455,37 @@ webhook. Коммит запрошен пользователем.
 - `uv run --no-sync --offline python -m compileall -q src/kvitto_test`:
   успешно. Существующие тесты `test_payments.py`: 17 прошли.
 - Запрос к реальной PostgreSQL в этой проверке не выполнялся.
+
+## Отдельная задача: CI и Ruff
+
+Технически готова к проверке пользователя. Статусы слайсов 8 и 9 не изменены.
+
+### Изменённые и созданные файлы
+
+- `.github/workflows/ci.yml`, `pyproject.toml`, `uv.lock` — настроены проверки
+  Ruff и pytest при каждом push; Ruff добавлен в группу зависимостей `dev`.
+- `alembic/env.py`, файлы в `src/kvitto_test/api`, `application/payments.py`,
+  `core/database.py`, `domain/payment.py`, `main.py`,
+  `repositories/payment.py`, `tests/test_payments.py` — применены исправления
+  Ruff для импортов, записи `Decimal` и совместимого с Python 3.11
+  обозначения UTC.
+- `tech/PROGRESS.md` — записан результат задачи.
+
+### Решения и ограничения
+
+- В `api/routes/webhooks.py` сохранены импорты для закомментированной проверки
+  подписи с точечными пометками `noqa: F401`. Проверка подписи остаётся
+  отключённой; поведение webhook не менялось.
+- Файлы миграций в `alembic/versions` не редактировались. Для них в
+  `pyproject.toml` отключено только правило Ruff `I001` о порядке импортов.
+  Остальные правила Ruff для миграций продолжают действовать.
+
+### Проверки
+
+- `uv run --no-sync --offline ruff check .` с локальным `UV_CACHE_DIR`:
+  `All checks passed!`.
+- `uv run --no-sync --offline pytest -q` с локальным `UV_CACHE_DIR`:
+  17 тестов прошли.
+- `git diff --check`: ошибок нет.
+- Пользователь отдельно разрешил коммит этой задачи. Push не выполнялся;
+  запуск GitHub Actions после push пока не проверен.

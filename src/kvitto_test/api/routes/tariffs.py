@@ -8,7 +8,6 @@ from kvitto_test.core.database import get_session
 from kvitto_test.repositories.tariff import SqlAlchemyTariffRepository
 from kvitto_test.schemas.tariff import TariffResponse
 
-
 router = APIRouter()
 
 

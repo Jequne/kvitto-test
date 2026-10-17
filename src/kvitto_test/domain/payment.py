@@ -1,7 +1,7 @@
-from enum import Enum
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
+from enum import Enum
 from uuid import UUID
 
 
@@ -52,7 +52,7 @@ class Payment:
 def calculate_discount(price: int, percent: int) -> int:
     return int(
         (Decimal(price) * Decimal(percent) / 100).quantize(
-            Decimal("1"), rounding=ROUND_HALF_UP
+            Decimal(1), rounding=ROUND_HALF_UP
         )
     )
 

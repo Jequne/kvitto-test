@@ -17,7 +17,6 @@ from kvitto_test.domain.payment import PaymentStatus
 from kvitto_test.repositories.payment import SqlAlchemyPaymentRepository
 from kvitto_test.schemas.payment import PaymentCreateRequest, PaymentResponse
 
-
 router = APIRouter()
 
 

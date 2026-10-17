@@ -1,5 +1,5 @@
-import hashlib
-import hmac
+import hashlib  # noqa: F401 - used by the disabled signature check below
+import hmac  # noqa: F401 - used by the disabled signature check below
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -11,14 +11,12 @@ from kvitto_test.application.payments import (
     PaymentNotFoundError,
     PaymentService,
 )
-from kvitto_test.core.config import settings
-
+from kvitto_test.core.config import settings  # noqa: F401 - used below
 from kvitto_test.schemas.webhook import (
     InvalidTransitionResponse,
     PaymentWebhookRequest,
     PaymentWebhookResponse,
 )
-
 
 router = APIRouter()
 

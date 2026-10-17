@@ -3,7 +3,7 @@ import hashlib
 import hmac
 import json
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import pytest
@@ -16,7 +16,6 @@ from kvitto_test.application.payments import PaymentService
 from kvitto_test.core.config import settings
 from kvitto_test.domain.payment import Payment, PaymentStatus, PromoCode
 from kvitto_test.domain.tariff import Tariff
-
 
 TARIFF_ID = UUID("00000000-0000-0000-0000-000000000001")
 TARIFF_PRICE = 1_990_000
@@ -51,7 +50,7 @@ class FakePaymentRepository:
         return self.payments_by_id.get(payment_id)
 
     async def add(self, payment: Payment, key: str | None) -> Payment:
-        saved = replace(payment, created_at=datetime.now(timezone.utc))
+        saved = replace(payment, created_at=datetime.now(UTC))
         self.add_count += 1
         self.payments_by_id[saved.id] = saved
         if key is not None:

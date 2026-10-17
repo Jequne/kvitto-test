@@ -8,8 +8,12 @@ from sqlalchemy.orm import selectinload
 
 from kvitto_test.domain.payment import (
     Payment as DomainPayment,
+)
+from kvitto_test.domain.payment import (
     PaymentMethod,
     PaymentStatus,
+)
+from kvitto_test.domain.payment import (
     PromoCode as DomainPromoCode,
 )
 from kvitto_test.domain.tariff import Tariff as DomainTariff

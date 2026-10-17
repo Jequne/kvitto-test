@@ -7,8 +7,8 @@ from kvitto_test.domain.payment import (
     PaymentMethod,
     PaymentStatus,
     PromoCode,
-    can_transition,
     calculate_discount,
+    can_transition,
     installment_schedule,
 )
 from kvitto_test.domain.tariff import Tariff
