@@ -14,7 +14,7 @@ router = APIRouter()
 
 @router.get("/tariffs", status_code=200, response_model=list[TariffResponse])
 async def get_tariffs(
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: Annotated[AsyncSession, Depends(get_session, scope="function")],
 ) -> list[TariffResponse]:
     tariffs = await list_tariffs(SqlAlchemyTariffRepository(session))
     return [TariffResponse.model_validate(tariff) for tariff in tariffs]
