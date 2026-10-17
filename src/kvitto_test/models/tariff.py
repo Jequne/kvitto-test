@@ -1,10 +1,14 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import BigInteger, CheckConstraint, DateTime, String, Uuid, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from kvitto_test.models.base import Base
+
+if TYPE_CHECKING:
+    from kvitto_test.models.payment import Payment
 
 
 class Tariff(Base):
@@ -20,3 +24,5 @@ class Tariff(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+    payments: Mapped[list["Payment"]] = relationship(back_populates="tariff")
