@@ -143,7 +143,7 @@ uv add fastapi "uvicorn[standard]" sqlalchemy asyncpg alembic pydantic-settings 
 ### Файлы
 
 ```text
-app/
+src/kvitto_test/
 ├── __init__.py
 ├── main.py
 ├── core/
@@ -516,7 +516,7 @@ kvitto-test/
 ├── uv.lock
 ├── README.md
 │
-├── app/
+├── src/kvitto_test/
 │   ├── __init__.py
 │   ├── main.py
 │   │
