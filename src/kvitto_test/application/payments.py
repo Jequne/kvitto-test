@@ -7,6 +7,7 @@ from kvitto_test.domain.payment import (
     PaymentMethod,
     PaymentStatus,
     PromoCode,
+    can_transition,
     calculate_discount,
     installment_schedule,
 )
@@ -40,6 +41,10 @@ class PaymentRepository(Protocol):
 
     async def add(self, payment: Payment, key: str | None) -> Payment | None: ...
 
+    async def update_status(
+        self, payment_id: UUID, current: PaymentStatus, target: PaymentStatus
+    ) -> bool: ...
+
 
 class PaymentNotFoundError(Exception):
     pass
@@ -50,6 +55,10 @@ class InvalidPromoCodeError(Exception):
 
 
 class InvalidAmountError(Exception):
+    pass
+
+
+class InvalidTransitionError(Exception):
     pass
 
 
@@ -118,3 +127,13 @@ class PaymentService:
         if payment is None:
             raise PaymentNotFoundError
         return payment
+
+    async def change_status(self, payment_id: UUID, target: PaymentStatus) -> None:
+        payment = await self.get(payment_id)
+        if not can_transition(payment.status, target):
+            raise InvalidTransitionError
+        updated = await self._repository.update_status(
+            payment_id, payment.status, target
+        )
+        if not updated:
+            raise InvalidTransitionError

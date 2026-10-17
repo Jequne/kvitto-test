@@ -18,6 +18,16 @@ class PaymentStatus(str, Enum):
     REFUNDED = "refunded"
 
 
+ALLOWED_STATUS_TRANSITIONS: dict[PaymentStatus, frozenset[PaymentStatus]] = {
+    PaymentStatus.PENDING: frozenset({PaymentStatus.SUCCEEDED, PaymentStatus.FAILED}),
+    PaymentStatus.SUCCEEDED: frozenset({PaymentStatus.REFUNDED}),
+}
+
+
+def can_transition(current: PaymentStatus, target: PaymentStatus) -> bool:
+    return target in ALLOWED_STATUS_TRANSITIONS.get(current, frozenset())
+
+
 @dataclass(frozen=True, slots=True)
 class PromoCode:
     id: UUID

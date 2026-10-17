@@ -1,21 +1,27 @@
 import asyncio
+import hashlib
+import hmac
+import json
 from dataclasses import replace
 from datetime import datetime, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient, Response
 
 from kvitto_test.api.routes.payments import get_payment_service, router
+from kvitto_test.api.routes.webhooks import router as webhook_router
 from kvitto_test.application.payments import PaymentService
-from kvitto_test.domain.payment import Payment, PromoCode
+from kvitto_test.core.config import settings
+from kvitto_test.domain.payment import Payment, PaymentStatus, PromoCode
 from kvitto_test.domain.tariff import Tariff
 
 
 TARIFF_ID = UUID("00000000-0000-0000-0000-000000000001")
 TARIFF_PRICE = 1_990_000
 PROMO_CODE_ID = UUID("00000000-0000-0000-0000-000000000002")
+WEBHOOK_SECRET = "test-webhook-secret"
 
 
 class FakePaymentRepository:
@@ -27,6 +33,7 @@ class FakePaymentRepository:
             price=TARIFF_PRICE,
         )
         self.payments_by_key: dict[str, Payment] = {}
+        self.payments_by_id: dict[UUID, Payment] = {}
         self.add_count = 0
 
     async def get_tariff(self, tariff_id: UUID) -> Tariff | None:
@@ -40,12 +47,29 @@ class FakePaymentRepository:
     async def get_by_key(self, key: str) -> Payment | None:
         return self.payments_by_key.get(key)
 
+    async def get_by_id(self, payment_id: UUID) -> Payment | None:
+        return self.payments_by_id.get(payment_id)
+
     async def add(self, payment: Payment, key: str | None) -> Payment:
         saved = replace(payment, created_at=datetime.now(timezone.utc))
         self.add_count += 1
+        self.payments_by_id[saved.id] = saved
         if key is not None:
             self.payments_by_key[key] = saved
         return saved
+
+    async def update_status(
+        self, payment_id: UUID, current: PaymentStatus, target: PaymentStatus
+    ) -> bool:
+        payment = self.payments_by_id.get(payment_id)
+        if payment is None or payment.status != current:
+            return False
+        updated = replace(payment, status=target)
+        self.payments_by_id[payment_id] = updated
+        for key, saved in self.payments_by_key.items():
+            if saved.id == payment_id:
+                self.payments_by_key[key] = updated
+        return True
 
 
 @pytest.fixture
@@ -57,10 +81,42 @@ def payment_repository() -> FakePaymentRepository:
 def payment_client(payment_repository: FakePaymentRepository) -> AsyncClient:
     app = FastAPI()
     app.include_router(router)
+    app.include_router(webhook_router)
     app.dependency_overrides[get_payment_service] = lambda: PaymentService(
         payment_repository
     )
     return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+
+
+@pytest.fixture
+def webhook_client(
+    payment_client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> AsyncClient:
+    monkeypatch.setattr(settings, "webhook_secret", WEBHOOK_SECRET)
+    return payment_client
+
+
+async def send_webhook(client: AsyncClient, payment_id: UUID, status: str) -> Response:
+    body = json.dumps({"payment_id": str(payment_id), "status": status}).encode()
+    signature = hmac.new(WEBHOOK_SECRET.encode(), body, hashlib.sha256).hexdigest()
+    return await client.post(
+        "/webhooks/bank",
+        content=body,
+        headers={"Content-Type": "application/json", "X-Signature": signature},
+    )
+
+
+async def create_test_payment(client: AsyncClient) -> UUID:
+    response = await client.post(
+        "/payments",
+        json={
+            "tariff_id": str(TARIFF_ID),
+            "email": "buyer@example.com",
+            "method": "card",
+        },
+    )
+    assert response.status_code == 201
+    return UUID(response.json()["id"])
 
 
 @pytest.mark.parametrize("months", [3, 6, 12])
@@ -160,3 +216,27 @@ def test_repeated_idempotency_key_does_not_create_second_payment(
     assert second.status_code == 200
     assert second.json() == first.json()
     assert payment_repository.add_count == 1
+
+
+@pytest.mark.anyio
+async def test_webhook_rejects_invalid_transition_without_changing_status(
+    webhook_client: AsyncClient,
+    payment_repository: FakePaymentRepository,
+) -> None:
+    async with webhook_client as client:
+        payment_id = await create_test_payment(client)
+        response = await send_webhook(client, payment_id, "refunded")
+
+    assert response.status_code == 409
+    assert response.json() == {"error": "invalid_transition"}
+    assert payment_repository.payments_by_id[payment_id].status == PaymentStatus.PENDING
+
+
+@pytest.mark.anyio
+async def test_webhook_returns_404_for_unknown_payment(
+    webhook_client: AsyncClient,
+) -> None:
+    async with webhook_client as client:
+        response = await send_webhook(client, uuid4(), "succeeded")
+
+    assert response.status_code == 404

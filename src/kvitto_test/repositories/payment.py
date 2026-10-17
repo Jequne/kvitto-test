@@ -1,7 +1,7 @@
 from dataclasses import replace
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -90,6 +90,17 @@ class SqlAlchemyPaymentRepository:
             )
             await self._session.flush()
         return replace(payment, created_at=created_at)
+
+    async def update_status(
+        self, payment_id: UUID, current: PaymentStatus, target: PaymentStatus
+    ) -> bool:
+        updated_id = await self._session.scalar(
+            update(Payment)
+            .where(Payment.id == payment_id, Payment.status == current.value)
+            .values(status=target.value)
+            .returning(Payment.id)
+        )
+        return updated_id is not None
 
     @staticmethod
     def _to_domain(row: Payment) -> DomainPayment:
