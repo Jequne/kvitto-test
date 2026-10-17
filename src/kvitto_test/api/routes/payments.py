@@ -2,6 +2,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response
+from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kvitto_test.application.payments import (
@@ -12,6 +13,7 @@ from kvitto_test.application.payments import (
     PaymentService,
 )
 from kvitto_test.core.database import get_session
+from kvitto_test.domain.payment import PaymentStatus
 from kvitto_test.repositories.payment import SqlAlchemyPaymentRepository
 from kvitto_test.schemas.payment import PaymentCreateRequest, PaymentResponse
 
@@ -63,6 +65,19 @@ async def create_payment(
         raise HTTPException(status_code=422, detail="Invalid payment amount") from exc
     response.status_code = 201 if result.created else 200
     return PaymentResponse.model_validate(result.payment, from_attributes=True)
+
+
+@router.get("/payments", status_code=200, response_model=list[PaymentResponse])
+async def list_payments(
+    service: Annotated[PaymentService, Depends(get_payment_service, scope="function")],
+    email: EmailStr | None = None,
+    status: PaymentStatus | None = None,
+) -> list[PaymentResponse]:
+    payments = await service.list_payments(email=email, status=status)
+    return [
+        PaymentResponse.model_validate(payment, from_attributes=True)
+        for payment in payments
+    ]
 
 
 @router.get(

@@ -37,6 +37,10 @@ class PaymentRepository(Protocol):
 
     async def get_by_id(self, payment_id: UUID) -> Payment | None: ...
 
+    async def list_payments(
+        self, email: str | None, status: PaymentStatus | None
+    ) -> list[Payment]: ...
+
     async def get_by_key(self, key: str) -> Payment | None: ...
 
     async def add(self, payment: Payment, key: str | None) -> Payment | None: ...
@@ -127,6 +131,11 @@ class PaymentService:
         if payment is None:
             raise PaymentNotFoundError
         return payment
+
+    async def list_payments(
+        self, email: str | None = None, status: PaymentStatus | None = None
+    ) -> list[Payment]:
+        return await self._repository.list_payments(email, status)
 
     async def change_status(self, payment_id: UUID, target: PaymentStatus) -> None:
         payment = await self.get(payment_id)

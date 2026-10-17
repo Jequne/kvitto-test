@@ -49,6 +49,18 @@ class SqlAlchemyPaymentRepository:
         )
         return self._to_domain(row) if row is not None else None
 
+    async def list_payments(
+        self, email: str | None, status: PaymentStatus | None
+    ) -> list[DomainPayment]:
+        statement = select(Payment).options(selectinload(Payment.installments))
+        if email is not None:
+            statement = statement.where(Payment.email == email)
+        if status is not None:
+            statement = statement.where(Payment.status == status.value)
+        statement = statement.order_by(Payment.created_at.desc(), Payment.id.desc())
+        rows = (await self._session.scalars(statement)).all()
+        return [self._to_domain(row) for row in rows]
+
     async def get_by_key(self, key: str) -> DomainPayment | None:
         row = await self._session.scalar(
             select(Payment)
