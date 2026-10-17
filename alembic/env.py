@@ -5,6 +5,7 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+import kvitto_test.models  # noqa: F401 - register mapped tables in Base.metadata
 from kvitto_test.core.config import settings
 from kvitto_test.models.base import Base
 
