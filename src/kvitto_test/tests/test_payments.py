@@ -147,6 +147,33 @@ def test_installment_schedule_sums_to_payment_amount(
     assert sum(schedule) == payment["amount"]
 
 
+def test_standard_installment_schedule_without_promo_code(
+    payment_client: AsyncClient,
+    payment_repository: FakePaymentRepository,
+) -> None:
+    payment_repository.tariff = replace(payment_repository.tariff, code="standard")
+
+    async def create_payment() -> Response:
+        async with payment_client as client:
+            return await client.post(
+                "/payments",
+                json={
+                    "tariff_id": str(TARIFF_ID),
+                    "email": "buyer@example.com",
+                    "method": "installment",
+                    "installment_months": 3,
+                },
+            )
+
+    response = asyncio.run(create_payment())
+
+    assert response.status_code == 201
+    payment = response.json()
+    assert payment["discount"] == 0
+    assert payment["amount"] == 1_990_000
+    assert payment["schedule"] == [663_334, 663_333, 663_333]
+
+
 @pytest.mark.parametrize(
     ("tariff_price", "promo_code", "expected_discount", "expected_amount"),
     [
